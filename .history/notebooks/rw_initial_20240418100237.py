@@ -57,7 +57,7 @@ train.isnull().sum()
 # Note:  There is no missing data <- seen
 target='Rings'
 
-# EDA visualisation ============================================================================================
+# EDA ============================================================================================
 # ================================================================================================
 
 
@@ -136,17 +136,13 @@ print("Insights:\n"
 
 # Categorical analysis ====================
 
+# Sex is the only categorical, we plot with numericals
+
 # Restrict these to the numerical feats we are interested in.
 # train.columns
 cont_cols = ['Whole_weight','Shell_weight']
 sns.pairplot(data=train, vars=cont_cols+[target], hue='Sex', dropna=True)
 plt.show()
-
-for col in cont_cols:
-    plt.figure(figsize=(8, 4))
-    sns.scatterplot(x='Sex', y=col, data=train)
-    plt.title(f'Box plot of {col} by Sex')
-    plt.show()
 
 
 # Insights
@@ -186,6 +182,11 @@ for col in numeric_features:
 # A log transformation is a powerful tool to handle skewed data. 
 # It can help to normalize the data and make it more suitable for 
 # a machine learning model.
+
+
+# possibley after feature eengineering
+
+
 
 
 #----------

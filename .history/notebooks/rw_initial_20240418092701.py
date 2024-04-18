@@ -33,14 +33,27 @@ set_config(transform_output = 'pandas')
 pd.options.mode.chained_assignment = None
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
+# Q: Why do they have original data?
 
 # Data ==============================
 
 train = pd.read_csv(r'..\train.csv')
 test = pd.read_csv(r'..\test.csv')
+original = pd.read_csv(r'..\Original.csv')
+
+train_copy=train.copy()
+test_copy=test.copy()
+
+# Tag Orignal <- merge it.
+original["original"]=1
+train["original"]=0
+test["original"]=0
 
 train.drop(columns=["id"],inplace=True)
 test.drop(columns=["id"],inplace=True)
+original.drop(columns=["id"],inplace=True)
+
+#possibly combine with train.
 
 train.rename(columns={'Whole weight.1':'Whole_weight_1',
                       'Whole weight.2':'Whole_weight_2',
@@ -50,59 +63,53 @@ test.rename(columns={'Whole weight.1':'Whole_weight_1',
                      'Whole weight.2':'Whole_weight_2',
                      'Whole weight':'Whole_weight',
                      'Shell weight':'Shell_weight'},inplace=True)
+original.rename(columns={'Shucked_weight':'Whole_weight_1',
+                     'Viscera_weight':'Whole_weight_2'},inplace=True)
 
+
+train=pd.concat([train,original],axis='rows')
 train.head(3)
-# Check for missing data
-train.isnull().sum()
+
+# Data exploration (before preprocessing) 
+
 # Note:  There is no missing data <- seen
-target='Rings'
 
-# EDA visualisation ============================================================================================
-# ================================================================================================
-
-
-
-## Target Analysis =======================
-
+# There is analysis of the target (rings) in notebooks\ps4e4-abalone-age-prediction-regression.ipynb
 # with a histogram 
 vc = train.Rings.value_counts()
 plt.figure(figsize=(6, 2))
 plt.bar(vc.index, vc)
+plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
 plt.show()
 # Insight: Because all training targets are between 1 and 29, we may clip all predictions to the interval \[1, 29\].
 
 
-# Distrubution of numericals =============
+# For some reason, they focus on log transformed histograms.
 
-def train_test_distributions(target='Rings'):
-    """
-    Plot the histograms of continuous columns in the train and test datasets.
+# Distrubution of numericals
 
-    This function calculates the number of rows needed for the subplots based on the number of continuous columns.
-    It then creates subplots for each continuous column and plots the histograms of the train and test datasets.
+def train_test_distributions():
 
-    Returns:
-        None
-    """
     cont_cols=[f for f in train.columns if train[f].dtype in [float,int] and train[f].nunique()>2 and f not in [target]]
 
     # Calculate the number of rows needed for the subplots
     num_rows = (len(cont_cols) + 2) // 3
 
     # Create subplots for each continuous column
-    _, axs = plt.subplots(num_rows, 3, figsize=(15, num_rows*5))
+    fig, axs = plt.subplots(num_rows, 3, figsize=(15, num_rows*5))
 
     # Loop through each continuous column and plot the histograms
     for i, col in enumerate(cont_cols):
         # Determine the range of values to plot
-        max_val = max(train[col].max(), test[col].max())
-        min_val = min(train[col].min(), test[col].min())
+        max_val = max(train[col].max(), test[col].max(), original[col].max())
+        min_val = min(train[col].min(), test[col].min(), original[col].min())
         range_val = max_val - min_val
         
         # Determine the bin size and number of bins
         bin_size = range_val / 20
         num_bins_train = round(range_val / bin_size)
         num_bins_test = round(range_val / bin_size)
+        num_bins_original = round(range_val / bin_size)
         
         # Calculate the subplot position
         row = i // 3
@@ -111,6 +118,7 @@ def train_test_distributions(target='Rings'):
         # Plot the histograms
         sns.histplot(train[col], ax=axs[row][col_pos], color='orange', kde=True, label='Train', bins=num_bins_train)
         sns.histplot(test[col], ax=axs[row][col_pos], color='green', kde=True, label='Test', bins=num_bins_test)
+        sns.histplot(original[col], ax=axs[row][col_pos], color='blue', kde=True, label='Original', bins=num_bins_original)
         axs[row][col_pos].set_title(col)
         axs[row][col_pos].set_xlabel('Value')
         axs[row][col_pos].set_ylabel('Frequency')
@@ -125,31 +133,27 @@ def train_test_distributions(target='Rings'):
     plt.show()
 train_test_distributions()
 
-print("Insights:\n"
-    "1. Only Height follows a Normal Distribution\n"
-    "2. Length Features & Weight Features have similar distribution across them. \n"
-    "   I suspect strong correlations between these categories. It is natural to have high\n"
-    "   shell weight & high visceral weight\n"
-    "---\n"
-    "So what- Length and Diameter are close in shape,\n"
-    "   similarly, Whole weight and Shucked weight, viscera weight and shell weight are close in shape.")
+# Insights
+# 1. Only Height follows a Normal Distribution
+# 2. Length Features & Weight Features have similar distribution across them. 
+# I suspect strong correlations between these categories. It is natural to have high 
+# shell weight & high visceral weight
+# ---
+# So what- Length and Diameter are close in shape,
+#similarly, Whole weight and Shucked weight, viscera weight and shell weight are close in shape.
 
-# Categorical analysis ====================
+# Categoricals
+
+# Sex is the only categorical, we plot with numericals
+
 
 # Restrict these to the numerical feats we are interested in.
-# train.columns
-cont_cols = ['Whole_weight','Shell_weight']
-sns.pairplot(data=train, vars=cont_cols+[target], hue='Sex', dropna=True)
+sns.pairplot(data=original, vars=cont_cols+[target], hue='Sex')
 plt.show()
 
-for col in cont_cols:
-    plt.figure(figsize=(8, 4))
-    sns.scatterplot(x='Sex', y=col, data=train)
-    plt.title(f'Box plot of {col} by Sex')
-    plt.show()
-
-
 # Insights
+
+# **INFERENCES**
 # 1. We can see the growth of an Abalone in physical attributes when they mature
 # 2. There are few datapoints which are outliers because naturally difficult to have low weights, 
 # normal length, & 3 times taller than the population(Possibility of experimental errors/noise).
@@ -186,6 +190,11 @@ for col in numeric_features:
 # A log transformation is a powerful tool to handle skewed data. 
 # It can help to normalize the data and make it more suitable for 
 # a machine learning model.
+
+
+# possibley after feature eengineering
+
+
 
 
 #----------
