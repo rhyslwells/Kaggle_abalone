@@ -54,7 +54,6 @@ test.rename(columns={'Whole weight.1':'Whole_weight_1',
                      'Shell weight':'Shell_weight'},inplace=True)
 
 train.head(3)
-train.shape #(90615, 9)
 # Summary statistics
 print("Summary Statistics:")
 print(train.describe())
@@ -201,6 +200,7 @@ def describe_feature(data, feature):
     for key, value in length_stats.items():
         print(f"{key}: {value}")
 
+
 def identify_outliers_by_feature(data, feature):
     """
     Identify outliers for a given feature using the Interquartile Range (IQR) method.
@@ -223,8 +223,8 @@ def identify_outliers_by_feature(data, feature):
     lower_bound = q1 - 1.5 * iqr
     upper_bound = q3 + 1.5 * iqr
 
-    # Find outliers of data as rows
-    outliers = data[(data[feature] < lower_bound) | (data[feature] > upper_bound)]
+    # Find outliers
+    outliers = data[(data[feature] < lower_bound) | (data[feature] > upper_bound)][feature]
     
     return outliers
 
@@ -236,18 +236,12 @@ def analyze_numerical_feature(data, feature, plot=True):
         plot_boxplot(data, feature)
 
     feature_outliers = identify_outliers_by_feature(data, feature)
-
     # remove the outliers from the data and take the boxplot again
-
-    # I want the specific rows of data that are outliers
     data_no_outliers = data[~data[feature].isin(feature_outliers)]
     if plot:
         print("Boxplot after removing outliers:")
         plot_boxplot(data_no_outliers, feature)
-    print(f"Percentage which are outliers for {feature}: {len(feature_outliers)/len(data) * 100:.2f}%")
-
-    # train_data["Height"] = train_data["Height"].clip(upper=0.5,lower=0.01)
-    # test_data["Height"] = test_data["Height"].clip(upper=0.5,lower=0.01)  
+    print(f"Percentage which are outliers for {feature}: {len(data_no_outliers)/len(data) * 100:.2f}%")
 
     return feature_outliers, data_no_outliers
 
@@ -295,63 +289,86 @@ whole_weight_2_feature_outliers, whole_weight_2_data_no_outliers=analyze_numeric
 # shell_weight_feature_outliers, shell_weight_data_no_outliers=analyze_numerical_feature(train, 'Shell_weight')
 shell_weight_feature_outliers, shell_weight_data_no_outliers=analyze_numerical_feature(train, 'Shell_weight',plot=False)
 
-# Handle outliers =============
 
-# Remove all outliers (union)
-# Collect all outliers from different features into a set
-all_outliers_repeats = concatenated_df = pd.concat([length_feature_outliers,
-                             diameter_feature_outliers,
-                             height_feature_outliers,
-                             whole_weight_feature_outliers,
-                             whole_weight_1_feature_outliers,
-                             whole_weight_2_feature_outliers,
-                             shell_weight_feature_outliers],axis=0)
-all_outliers_repeats.shape #(6040,9)
+###
 
-# Remove duplicates from the set of all outliers
-all_outliers = all_outliers_repeats.drop_duplicates()
-all_outliers.shape #(3349, 9)
-# Convert the set of outliers back to a DataFrame
-train.shape #(90615, 9)
-df_no_outliers = train[~train.isin(all_outliers)].dropna()
-df_no_outliers.shape #(87266, 9)
 
-# Remove the outliers from the original data
-train=df_no_outliers
+# Handle outliers 
 
-# Categoricals analysis ==================================
+# Log transformation to help the skewness.
+
+# Categoricals and Target analysis ==================================
 
 # Sex is the only categorical feature.
 
+# with a histogram 
+vc = train.Rings.value_counts()
+plt.figure(figsize=(6, 2))
+plt.bar(vc.index, vc)
+plt.show()
+# Insight: Because all training targets are between 1 and 29, we may clip all predictions to the interval \[1, 29\].
+
+# sns.pairplot
+
+# for each numerical boxplot for sex.
+
+# filter outliers again per sex and numerical?
+
+# Idenifity features which have distinction in heights between boxplots. - apparently none.
+
+# encode to numericals - one hot encoding
+
+# Ask gpt for more things to consider.
+
+# Do statistical tests to see if the difference in means is significant.
+
+# Height as histogram - two overlapping histograms (M & F). 
+
+# Is height a good predictor of sex are these distrubutions statitically different? chi square, kstest, ttest.
+
+
+## Target Analysis =======================
+
+
+
+# Categorical analysis ====================
+
 # Restrict these to the numerical feats we are interested in.
 # train.columns
-# ['Length', 'Diameter', 'Height', 'Whole_weight', 'Whole_weight_1','Whole_weight_2', 'Shell_weight']
+cont_cols = ['Whole_weight','Shell_weight']
+sns.pairplot(data=train, vars=cont_cols+[target], hue='Sex', dropna=True)
+plt.show()
 
-x_vars = ['Length', 'Diameter', 'Height', 'Whole_weight', 'Whole_weight_1','Whole_weight_2', 'Shell_weight']
-y_vars = ['Length', 'Diameter', 'Height', 'Whole_weight', 'Whole_weight_1','Whole_weight_2', 'Shell_weight']
-sns.pairplot(train, x_vars=x_vars, y_vars=y_vars, hue='Sex', corner=True)
+for col in cont_cols:
+    plt.figure(figsize=(8, 4))
+    sns.scatterplot(x='Sex', y=col, data=train)
+    plt.title(f'Box plot of {col} by Sex')
+    plt.show()
 
-x_vars = ['Whole_weight']
-y_vars = ['Length']
-sns.pairplot(train, x_vars=x_vars, y_vars=y_vars, hue='Sex', corner=True)
 
 # Insights
 # 1. We can see the growth of an Abalone in physical attributes when they mature
+# 2. There are few datapoints which are outliers because naturally difficult to have low weights, 
+# normal length, & 3 times taller than the population(Possibility of experimental errors/noise).
 # 3. I think Sex is an important feature especially the immatured category
-# 4. Linear correlation across weights is observed and also between length-diameter.
+# 4. Correlation across weights is observed and also between length-diameter.
 
-# for each numerical get a boxplot for sex and possibly filter outliers again.
+# corrolation plot <- what does it say, clustermap?
+cc = np.corrcoef(train[numeric_vars], rowvar=False)
+sns.heatmap(cc, center=0, cmap='coolwarm', annot=True,
+            xticklabels=numeric_vars, yticklabels=numeric_vars)
+plt.show()
+# Tells us all features are improtant. No need to drop.
 
-# Do Statisical tests to idenifity features which have distinction in heights between boxplots. - apparently none.
+# Preprocessing ==============================
 
-# Do statistical tests to see if the difference in means is significant.
-# Height as histogram - two overlapping histograms (M & F). 
-# Is height a good predictor of sex are these distrubutions statitically different? chi square, kstest, ttest.
-
-# encode to numericals - one hot encoding
+#Handle outliers
 # le = LabelEncoder()
 # train_data["Sex"] = le.fit_transform(train_data["Sex"])
 # test_data["Sex"]  = le.transform(test_data["Sex"])
+
+# train_data["Height"] = train_data["Height"].clip(upper=0.5,lower=0.01)
+# test_data["Height"] = test_data["Height"].clip(upper=0.5,lower=0.01)
 
 # log transformation of numericals
 log_features = [f for f in num_cols if (train[f] >= 0).all() and scipy.stats.skew(train[f]) > 0]

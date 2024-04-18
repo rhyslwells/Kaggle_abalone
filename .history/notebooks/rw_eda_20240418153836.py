@@ -316,7 +316,6 @@ train.shape #(90615, 9)
 df_no_outliers = train[~train.isin(all_outliers)].dropna()
 df_no_outliers.shape #(87266, 9)
 
-# Remove the outliers from the original data
 train=df_no_outliers
 
 # Categoricals analysis ==================================

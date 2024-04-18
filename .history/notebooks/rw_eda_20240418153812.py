@@ -316,8 +316,8 @@ train.shape #(90615, 9)
 df_no_outliers = train[~train.isin(all_outliers)].dropna()
 df_no_outliers.shape #(87266, 9)
 
-# Remove the outliers from the original data
 train=df_no_outliers
+
 
 # Categoricals analysis ==================================
 
@@ -340,6 +340,7 @@ sns.pairplot(train, x_vars=x_vars, y_vars=y_vars, hue='Sex', corner=True)
 # 3. I think Sex is an important feature especially the immatured category
 # 4. Linear correlation across weights is observed and also between length-diameter.
 
+
 # for each numerical get a boxplot for sex and possibly filter outliers again.
 
 # Do Statisical tests to idenifity features which have distinction in heights between boxplots. - apparently none.
@@ -352,6 +353,15 @@ sns.pairplot(train, x_vars=x_vars, y_vars=y_vars, hue='Sex', corner=True)
 # le = LabelEncoder()
 # train_data["Sex"] = le.fit_transform(train_data["Sex"])
 # test_data["Sex"]  = le.transform(test_data["Sex"])
+
+
+
+
+# Preprocessing ==============================
+
+#
+
+
 
 # log transformation of numericals
 log_features = [f for f in num_cols if (train[f] >= 0).all() and scipy.stats.skew(train[f]) > 0]
