@@ -51,6 +51,8 @@ print("CV RMSLE score of CAT is ", cat_rmsle)
 
 # Cross-validation ==============================
 
+
+
 # To ensure that our cross-validation results are consistent, we'll use the same function for cross-validating all models.
 kf = StratifiedKFold(n_splits=3, shuffle=True, random_state=1)
 def cross_validate(model, kf, features):
@@ -90,13 +92,12 @@ def cross_validate(model, kf, features):
 # train.columns
 # features=['Sex', 'Length', 'Diameter', 'Height', 'Whole_weight', 'Whole_weight_1','Whole_weight_2', 'Shell_weight', 'Volume', 'Density']
 features_reduced=['Sex', 'Volume', 'Density']
+
 # log_features=[]
 # numeric_features
 
-# Hyperparameters were tuned with Optuna (see below)
-
-
 # Random forest
+# Define the random forest regressor
 rf_regressor = RandomForestRegressor(n_estimators=50, min_samples_leaf=8, max_features=5)
 model =rf_regressor
 # Perform cross-validation
@@ -104,12 +105,14 @@ oof_predictions = cross_validate(rf_regressor, kf, features_reduced)
 # Overall: 0.14962 Random forest
 #can replace with log features
 
+from import lightgbm
 # LightGBM
+# Hyperparameters were tuned with Optuna
 lgbm_params = {'n_estimators': 1000, 'learning_rate': 0.038622511348472645, 'colsample_bytree': 0.5757189042456357, 'reg_lambda': 0.09664116733307193, 'min_child_samples': 87, 'num_leaves': 43, 'verbose': -1} # 0.14804
 model = TransformedTargetRegressor(LGBMRegressor(**lgbm_params),
                                                  func=np.log1p,
                                                  inverse_func=np.expm1)
-cross_validate(model, kf, features_reduced)
+cross_validate(model, 'LightGBM', features_reduced)
 # Overall: 0.14804 LightGBM
 
 # XGBoost with RMSE objective
@@ -118,7 +121,7 @@ xgb_params = {'grow_policy': 'lossguide', 'n_estimators': 300, 'learning_rate': 
 model = TransformedTargetRegressor(XGBRegressor(**xgb_params),
                                                  func=np.log1p,
                                                  inverse_func=np.expm1)
-cross_validate(model, kf, features_reduced)
+cross_validate(model, 'XGBoost', features_reduced)
 # Overall: 0.14853 XGBoost
 
 # Catboost
@@ -127,7 +130,7 @@ cb_params = {'grow_policy': 'SymmetricTree', 'n_estimators': 1000, 'learning_rat
 model = TransformedTargetRegressor(CatBoostRegressor(**cb_params),
                                                  func=np.log1p,
                                                  inverse_func=np.expm1)
-cross_validate(model,kf, features_reduced)
+cross_validate(model, 'Catboost', features_reduced)
 # Overall: 0.14851 Catboost
 
 # # Hyperparameter tuning ==============================
